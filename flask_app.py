@@ -79,8 +79,8 @@ def main():
         req_text = req["request"]["original_utterance"].lower()
         req_parts = req_text.split() # Делим на отдельные слова
 
-        if req_parts[0] == 'запомни':
-            if req_parts[1] == 'задачу':
+        if req_parts[0] == 'запомни' or req_parts[1] == 'создай':
+            if req_parts[1] == 'задачу' or req_parts[1] == 'заметку':
                 message = ' '.join(req_parts[2:]) # Оставляем оставшиеся слова
             else:
                 message = ' '.join(req_parts[1:])
@@ -90,18 +90,12 @@ def main():
             else:
                 res_text = "Извините, у меня ошибка"
 
-        elif req_parts[0] == 'напомни' or req_parts[1] == 'через':
-            message = ' '.join(req_parts[1:]) # Оставляем все слова, кроме первого
-
-            if RememberNote(message):
-                res_text = "Я запомнила"
-            else:
-                res_text = "Извините, у меня ошибка"
-
-        elif req_text == 'какие у меня задачи' or req_text == 'задачи':
+        elif req_parts[0] == 'измени' and (req_parts[1] == 'задачу' or req_parts[1] == 'заметку'):
             pass
-        elif  req_text == 'задача':
+
+        elif req_parts[0] == 'задача' or req_parts[0] == 'заметка':
             pass
+
 
     response["response"]["text"] = res_text
 
