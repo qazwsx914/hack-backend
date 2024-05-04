@@ -11,6 +11,56 @@ app = Flask(__name__)
 CORS(app)
 logging.basicConfig(level=logging.DEBUG)
 
+
+def RememberNote(line = ""):
+    return True     # TODO: сделать передачу в датабазу и потом на фронт
+
+def RemindAtMind(line = "", futureTime = 0):
+    pass
+
+'''
+from dateutil import parser
+import re
+def normalize_time(time_str):
+    # Регулярные выражения для различных форматов времени
+    patterns = [
+        r'(\d+)\s*(?:мин|минут[ыа]?)',
+        r'(\d+)\s*(?:час|час[оа]в)',
+        r'(\d+)\s*(?:ден[ья]?|дн[ея]?)',
+        r'(\d+)\s*(?:недел[ия]?|нед[ей]?)',
+        r'(\d+)\s*(?:месяц[аев]?|мес\.?)',
+        r'(\d+)\s*(?:го[дау]?|л[ет]?)',
+        r'(\d+)\s*([яа]нвар[ья]?|феврал[ья]?|март[а]?|апрел[ья]?|ма[ия]?|июн[ья]?|июл[ья]?|август[а]?|сентябр[ья]?|октябр[ья]?|ноябр[ья]?|декабр[ья]?)\s*(\d+)?'
+    ]
+
+    # Попытка совпадения с каждым регулярным выражением
+    for pattern in patterns:
+        match = re.search(pattern, time_str, re.IGNORECASE)
+        if match:
+            value = int(match.group(1))
+            unit = match.lastgroup
+            try:
+                if unit.startswith('мин'):
+                    return parser.relativedelta(minutes=value)
+                elif unit.startswith('час'):
+                    return parser.relativedelta(hours=value)
+                elif unit.startswith('ден') or unit.startswith('дн'):
+                    return parser.relativedelta(days=value)
+                elif unit.startswith('недел'):
+                    return parser.relativedelta(weeks=value)
+                elif unit.startswith('месяц'):
+                    return parser.relativedelta(months=value)
+                elif unit.startswith('го'):
+                    year = match.group(3) if match.group(3) else None
+                    return parser.relativedelta(years=value, month=parser.parse(match.group(2), yearfirst=True).month, day=year)
+            except ValueError:
+                pass
+
+    # Если не удалось совпасть ни с одним регулярным выражением, возвращаем None
+    return None
+'''
+
+
 @app.route('/', methods=['POST'])
 def main():
     response = {
@@ -21,23 +71,40 @@ def main():
         }
     }
     req = request.json
-    if req["session"]["new"]:
-        response["response"]["text"] = "Привет, как дела?"
+    res_text = ""
+
+    if req["session"]["new"]: # Если сессия новая
+        res_text = "Привет, я запомню всё, что вы мне скажете"
     else:
-        if req["request"]["original_utterance"].lower() in ["хорошо"]:
-            response["response"]["text"] = "Супер!"
-        elif req["request"]["original_utterance"].lower() in ["плохо"]:
-            response["response"]["text"] = "Ну и ладно"
-        elif req["request"]["original_utterance"].lower() in ["кто у нас рома"]:
-            response["response"]["text"] = "Он у нас красавчик"
-        elif req["request"]["original_utterance"].lower() in ["кто у нас руслан"]:
-            response["response"]["text"] = "Он у нас программист"
-        elif req["request"]["original_utterance"].lower() in ["кто у нас дима"]:
-            response["response"]["text"] = "Он у нас обезьянка"
-        elif req["request"]["original_utterance"].lower() in ["кто у нас руслан"]:
-            response["response"]["text"] = "Просто молодец"
-        else:
-            response["response"]["text"] = "Пиши по сценарию!!!"
+        req_text = req["request"]["original_utterance"].lower()
+        req_parts = req_text.split() # Делим на отдельные слова
+
+        if req_parts[0] == 'запомни':
+            if req_parts[1] == 'задачу':
+                message = ' '.join(req_parts[2:]) # Оставляем оставшиеся слова
+            else:
+                message = ' '.join(req_parts[1:])
+
+            if RememberNote(message):
+                res_text = "Я запомнила"
+            else:
+                res_text = "Извините, у меня ошибка"
+
+        elif req_parts[0] == 'напомни' or req_parts[1] == 'через':
+            message = ' '.join(req_parts[1:]) # Оставляем все слова, кроме первого
+
+            if RememberNote(message):
+                res_text = "Я запомнила"
+            else:
+                res_text = "Извините, у меня ошибка"
+
+        elif req_text == 'какие у меня задачи' or req_text == 'задачи':
+            pass
+        elif  req_text == 'задача':
+            pass
+
+    response["response"]["text"] = res_text
 
     return json.dumps(response)
+
 
