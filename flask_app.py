@@ -29,50 +29,6 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
 
-def RemindAtMind(line = "", futureTime = 0):
-    pass
-
-'''
-from dateutil import parser
-import re
-def normalize_time(time_str):
-    # Регулярные выражения для различных форматов времени
-    patterns = [
-        r'(\d+)\s*(?:мин|минут[ыа]?)',
-        r'(\d+)\s*(?:час|час[оа]в)',
-        r'(\d+)\s*(?:ден[ья]?|дн[ея]?)',
-        r'(\d+)\s*(?:недел[ия]?|нед[ей]?)',
-        r'(\d+)\s*(?:месяц[аев]?|мес\.?)',
-        r'(\d+)\s*(?:го[дау]?|л[ет]?)',
-        r'(\d+)\s*([яа]нвар[ья]?|феврал[ья]?|март[а]?|апрел[ья]?|ма[ия]?|июн[ья]?|июл[ья]?|август[а]?|сентябр[ья]?|октябр[ья]?|ноябр[ья]?|декабр[ья]?)\s*(\d+)?'
-    ]
-
-    # Попытка совпадения с каждым регулярным выражением
-    for pattern in patterns:
-        match = re.search(pattern, time_str, re.IGNORECASE)
-        if match:
-            value = int(match.group(1))
-            unit = match.lastgroup
-            try:
-                if unit.startswith('мин'):
-                    return parser.relativedelta(minutes=value)
-                elif unit.startswith('час'):
-                    return parser.relativedelta(hours=value)
-                elif unit.startswith('ден') or unit.startswith('дн'):
-                    return parser.relativedelta(days=value)
-                elif unit.startswith('недел'):
-                    return parser.relativedelta(weeks=value)
-                elif unit.startswith('месяц'):
-                    return parser.relativedelta(months=value)
-                elif unit.startswith('го'):
-                    year = match.group(3) if match.group(3) else None
-                    return parser.relativedelta(years=value, month=parser.parse(match.group(2), yearfirst=True).month, day=year)
-            except ValueError:
-                pass
-
-    # Если не удалось совпасть ни с одним регулярным выражением, возвращаем None
-    return None
-'''
 association_table = db.Table('association', db.Model.metadata,
     db.Column('left_id', db.Integer, db.ForeignKey('user.id')),
     db.Column('right_id', db.Integer, db.ForeignKey('note.id'))
@@ -96,15 +52,13 @@ class Note(db.Model):
 with app.app_context():
     db.create_all()
 
+
 def RememberNote(line = "", username=""):
     try:
-        nt = Note(Description=line, Title=username)
-        us = User(Name=username)
+        us = User(Name=username) # req["session"]["user"]["user_id"]
+        nt = Note(Description=line)
+        us.notes.append(nt)
         db.session.add(us)
-        db.session.add(nt)
-        db.session.commit()
-        nt.Users.append(us)
-        us.Notes.append(nt)
         db.session.commit()
         return True
     except:
@@ -113,6 +67,10 @@ def RememberNote(line = "", username=""):
 def ShowNote(username=''):
     return Note.query.filter_by(username=username).all()
 
+def SetNoteStatus(desk, status):
+    nt = Note.query.filter_by(Description=desk).first()
+    nt.Status = status
+    db.session.commit()
 
 @app.route('/', methods=['POST'])
 def main():
@@ -142,7 +100,7 @@ def main():
                     message = ' '.join(req_parts[2:]) # Оставляем оставшиеся слова
                 else:
                     message = ' '.join(req_parts[1:])
-
+                '''
                 try:
                     us = User(Name=req["session"]["user_id"]) # req["session"]["user"]["user_id"]
                     nt = Note(Description=message)
@@ -153,17 +111,29 @@ def main():
                 except Exception as e:
                     res_text = e
                 '''
-                if RememberNote(message, 'username'):
+                if RememberNote(message, req["session"]["user_id"]):
                     res_text = "Я запомнила"
                 else:
                     res_text = "Извините, у меня ошибка"
-                '''
 
-        elif req_parts[0] == 'измени' and (req_parts[1] == 'задачу' or req_parts[1] == 'заметку'):
-            pass
 
-        elif req_parts[0] == 'задача' or req_parts[0] == 'заметка':
-            res_text = ShowNote('username')
+        elif len(req_parts) > 3:
+            if req_parts[0] == 'измени' or req_parts[1] == 'статус' or req_parts[2] == 'задачи':
+                ln = len(req_parts)
+                if req_parts[ln-1] == 'выполнена':
+                    if req_parts[ln-2] == 'не':
+                        message = ' '.join(req_parts[3:-2])
+                        status = False
+                    else:
+                        message = ' '.join(req_parts[3:-1])
+                        status = True
+                    SetNoteStatus(message, status)
+
+                else:
+                    res_text = "Ошибка"
+
+        #elif req_parts[0] == 'задача' or req_parts[0] == 'заметка':
+        #    res_text = ShowNote('username')
 
 
     response["response"]["text"] = res_text
