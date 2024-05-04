@@ -4,6 +4,7 @@
 from flask import Flask, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
 import logging
 import json
@@ -12,11 +13,20 @@ app = Flask(__name__)
 CORS(app)
 logging.basicConfig(level=logging.DEBUG)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///TaskNote.db'
+app.config["DEBUG"] = True
+
+SQLALCHEMY_DATABASE_URI = "mysql+mysqlconnector://{username}:{password}@{hostname}/{databasename}".format(
+    username="Kortep",
+    password="mysql1716",
+    hostname="Kortep.mysql.pythonanywhere-services.com",
+    databasename="Kortep$Notes",
+)
+app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
+app.config["SQLALCHEMY_POOL_RECYCLE"] = 299
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 db = SQLAlchemy(app)
 
-def RememberNote(line = ""):
-    return True     # TODO: сделать передачу в датабазу и потом на фронт
 
 def RemindAtMind(line = "", futureTime = 0):
     pass
@@ -63,6 +73,34 @@ def normalize_time(time_str):
     return None
 '''
 
+# Определение моделей
+
+
+class Note(db.Model):
+    NoteID = db.Column(db.Integer, primary_key=True)
+    Title = db.Column(db.Text, nullable=False)
+    Description = db.Column(db.Text)
+    CreationDate = db.Column(db.TIMESTAMP, default=datetime.utcnow)
+    Status = db.Column(db.Text, default='active')
+
+
+
+with app.app_context():
+    db.create_all()
+
+
+def RememberNote(line = "", username=""):
+    try:
+        nt = Note(NoteID=1, Description=line)
+        db.session.add(nt)
+        db.session.commit()
+        return True
+    except:
+        return False
+
+def ShowNote(username=''):
+    return Note.query.filter_by(username=username).all()
+
 
 @app.route('/', methods=['POST'])
 def main():
@@ -82,22 +120,33 @@ def main():
         req_text = req["request"]["original_utterance"].lower()
         req_parts = req_text.split() # Делим на отдельные слова
 
-        if req_parts[0] == 'запомни' or req_parts[1] == 'создай':
-            if req_parts[1] == 'задачу' or req_parts[1] == 'заметку':
-                message = ' '.join(req_parts[2:]) # Оставляем оставшиеся слова
+        if req_parts[0] == 'запомни' or req_parts[0] == 'создай':
+            if len(req_parts) < 2:
+                res_text = "Что я должна запомнить?"
             else:
-                message = ' '.join(req_parts[1:])
+                if req_parts[1] == 'задачу' or req_parts[1] == 'заметку':
+                    message = ' '.join(req_parts[2:]) # Оставляем оставшиеся слова
+                else:
+                    message = ' '.join(req_parts[1:])
 
-            if RememberNote(message):
-                res_text = "Я запомнила"
-            else:
-                res_text = "Извините, у меня ошибка"
+                try:
+                    nt = Note(NoteID=1, Description=message, Title='Empty')
+                    db.session.add(nt)
+                    db.session.commit()
+                    res_text = "Я запомнила"
+                except Exception as e:
+                    res_text = e;
+
+                '''if RememberNote(message, 'username'):
+                    res_text = "Я запомнила"
+                else:
+                    res_text = "Извините, у меня ошибка"'''
 
         elif req_parts[0] == 'измени' and (req_parts[1] == 'задачу' or req_parts[1] == 'заметку'):
             pass
 
         elif req_parts[0] == 'задача' or req_parts[0] == 'заметка':
-            pass
+            res_text = ShowNote('username')
 
 
     response["response"]["text"] = res_text
