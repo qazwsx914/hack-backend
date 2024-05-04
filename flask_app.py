@@ -4,6 +4,7 @@
 from flask import Flask, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import relationship
 from datetime import datetime
 
 import logging
@@ -72,27 +73,38 @@ def normalize_time(time_str):
     # Если не удалось совпасть ни с одним регулярным выражением, возвращаем None
     return None
 '''
+association_table = db.Table('association', db.Model.metadata,
+    db.Column('left_id', db.Integer, db.ForeignKey('user.id')),
+    db.Column('right_id', db.Integer, db.ForeignKey('note.id'))
+)
 
-# Определение моделей
-
+class User(db.Model):
+    __tablename__ = 'user'
+    id = db.Column(db.Integer, primary_key=True)
+    Name = db.Column(db.Text, nullable=False)
+    notes = db.relationship("Note",
+                    secondary=association_table)
 
 class Note(db.Model):
-    NoteID = db.Column(db.Integer, primary_key=True)
-    Title = db.Column(db.Text, nullable=False)
-    Description = db.Column(db.Text)
-    CreationDate = db.Column(db.TIMESTAMP, default=datetime.utcnow)
+    __tablename__ = 'note'
+    id = db.Column(db.Integer, primary_key=True)
+    Description = db.Column(db.Text, nullable=False)
     Status = db.Column(db.Text, default='active')
-
+    CreateDate = db.Column(db.TIMESTAMP, default=datetime.utcnow)
 
 
 with app.app_context():
     db.create_all()
 
-
 def RememberNote(line = "", username=""):
     try:
-        nt = Note(NoteID=1, Description=line)
+        nt = Note(Description=line, Title=username)
+        us = User(Name=username)
+        db.session.add(us)
         db.session.add(nt)
+        db.session.commit()
+        nt.Users.append(us)
+        us.Notes.append(nt)
         db.session.commit()
         return True
     except:
@@ -104,6 +116,8 @@ def ShowNote(username=''):
 
 @app.route('/', methods=['POST'])
 def main():
+    print("start")
+
     response = {
         "version": request.json["version"],
         "session": request.json["session"],
@@ -130,17 +144,20 @@ def main():
                     message = ' '.join(req_parts[1:])
 
                 try:
-                    nt = Note(NoteID=1, Description=message, Title='Empty')
-                    db.session.add(nt)
+                    us = User(Name=req["session"]["user_id"]) # req["session"]["user"]["user_id"]
+                    nt = Note(Description=message)
+                    us.notes.append(nt)
+                    db.session.add(us)
                     db.session.commit()
                     res_text = "Я запомнила"
                 except Exception as e:
-                    res_text = e;
-
-                '''if RememberNote(message, 'username'):
+                    res_text = e
+                '''
+                if RememberNote(message, 'username'):
                     res_text = "Я запомнила"
                 else:
-                    res_text = "Извините, у меня ошибка"'''
+                    res_text = "Извините, у меня ошибка"
+                '''
 
         elif req_parts[0] == 'измени' and (req_parts[1] == 'задачу' or req_parts[1] == 'заметку'):
             pass
