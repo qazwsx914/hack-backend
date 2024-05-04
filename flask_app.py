@@ -77,13 +77,37 @@ def normalize_time(time_str):
 
 
 class Note(db.Model):
-    NoteID = db.Column(db.Integer, primary_key=True)
+    __tablename__ = 'notes'
+    NoteID = db.Column(db.Integer, primary_key=True, autoincrement=True)
     Title = db.Column(db.Text, nullable=False)
     Description = db.Column(db.Text)
     CreationDate = db.Column(db.TIMESTAMP, default=datetime.utcnow)
     Status = db.Column(db.Text, default='active')
+    Users = relationship('User', secondary='intents')
 
+    def __repr__(self):
+        return '<Note %r>' % self.Title
+    
 
+class User(db.Model):
+    UserID = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    Username = db.Column(db.Text, unique=True, nullable=False)
+    Notes = relationship('Note', secondary='intents')
+    
+    def __repr__(self):
+        return self.Username
+
+class Intent(db.Model):
+    __tablename__ = 'intents'
+    IntentID = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    UserID = db.Column(db.Integer, db.ForeignKey('user.UserID'))
+    NoteID = db.Column(db.Integer, db.ForeignKey('note.NoteID'))
+    IntentText = db.Column(db.Text)
+    IntentDate = db.Column(db.TIMESTAMP, default=datetime.utcnow)
+    LastModified = db.Column(db.TIMESTAMP, default=datetime.utcnow)
+
+    def __repr__(self):
+        return self.IntentID
 
 with app.app_context():
     db.create_all()
