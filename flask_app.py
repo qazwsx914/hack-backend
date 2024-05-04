@@ -3,6 +3,7 @@
 
 from flask import Flask, request
 from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
 
 import logging
 import json
@@ -11,6 +12,8 @@ app = Flask(__name__)
 CORS(app)
 logging.basicConfig(level=logging.DEBUG)
 
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///TaskNote.db'
+db = SQLAlchemy(app)
 
 def RememberNote(line = ""):
     return True     # TODO: сделать передачу в датабазу и потом на фронт
